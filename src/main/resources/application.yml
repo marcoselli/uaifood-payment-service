@@ -2,23 +2,26 @@ spring:
   application:
     name: uaifood-payment-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/uaifood_payment
+    url: jdbc:postgresql://localhost:5433/uaifood_payment
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
     show-sql: true
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
   rabbitmq:
     host: localhost
-    port: 5672
+    port: 5673
     username: guest
     password: guest
+  data:
+    mongodb:
+      uri: mongodb://root:root@localhost:27018/uaifood_payment?authSource=admin
 
 server:
   port: 8082
@@ -30,17 +33,7 @@ springdoc:
     path: /swagger-ui.html
     operationsSorter: method
 
-mercadopago:
-  access-token: ${MERCADOPAGO_ACCESS_TOKEN:TEST-ACCESS-TOKEN}
-  public-key: ${MERCADOPAGO_PUBLIC_KEY:TEST-PUBLIC-KEY}
-  client-id: ${MERCADOPAGO_CLIENT_ID:TEST-CLIENT-ID}
-  client-secret: ${MERCADOPAGO_CLIENT_SECRET:TEST-CLIENT-SECRET}
-  webhook:
-    secret: ${MERCADOPAGO_WEBHOOK_SECRET:TEST-WEBHOOK-SECRET}
-  success-url: ${PAYMENT_SUCCESS_URL:http://localhost:3000/payment/success}
-  failure-url: ${PAYMENT_FAILURE_URL:http://localhost:3000/payment/failure}
-  pending-url: ${PAYMENT_PENDING_URL:http://localhost:3000/payment/pending}
-
 payment:
   mock:
-    enabled: ${PAYMENT_MOCK_ENABLED:false}  # Enable mocks by setting PAYMENT_MOCK_ENABLED=true 
+    enabled: true
+    success-rate: 0.8  # 80% success rate for mock payments 

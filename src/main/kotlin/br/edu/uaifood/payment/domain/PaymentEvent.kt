@@ -1,6 +1,8 @@
 package br.edu.uaifood.payment.domain
 
 import jakarta.persistence.*
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.UUID
@@ -29,6 +31,7 @@ data class PaymentEvent(
     @Column(nullable = false, precision = 10, scale = 2)
     val amount: BigDecimal,
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     val metadata: Map<String, String> = emptyMap(),
 
