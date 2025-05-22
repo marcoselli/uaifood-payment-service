@@ -1,0 +1,38 @@
+spring:
+  datasource:
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    url: jdbc:tc:postgresql:15-alpine:///payment_test?TC_INITSCRIPT=init.sql
+    username: test
+    password: test
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+    open-in-view: false
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/uaifood_payment_test
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+logging:
+  level:
+    root: INFO
+    br.edu.uaifood.payment: DEBUG
+    org.springframework.amqp: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE
+    org.testcontainers: INFO
+    com.github.dockerjava: WARN
+
+server:
+  port: 0  # Random port for tests 
