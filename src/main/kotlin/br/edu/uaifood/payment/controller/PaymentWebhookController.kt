@@ -4,6 +4,7 @@ import br.edu.uaifood.payment.domain.PaymentStatus
 import br.edu.uaifood.payment.service.PaymentService
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import java.util.UUID
 
 @RestController
 @RequestMapping("/webhooks/payment")
@@ -14,27 +15,24 @@ class PaymentWebhookController(
     fun handlePaymentStatus(
         @PathVariable paymentId: String,
         @RequestParam status: String
-    ): ResponseEntity<Map<String, String>> {
+    ): ResponseEntity<Map<String, Any>> {
         val payment = paymentService.getPaymentByPaymentId(paymentId)
             ?: return ResponseEntity.notFound().build()
 
-        val paymentStatus = when (status.lowercase()) {
+        val newStatus = when (status.lowercase()) {
             "approved", "succeeded" -> PaymentStatus.APPROVED
-            "rejected", "failed" -> PaymentStatus.REJECTED
-            "pending" -> PaymentStatus.PENDING
-            else -> return ResponseEntity.badRequest().body(mapOf(
-                "status" to "error",
-                "message" to "Invalid status: $status"
-            ))
+            "failed" -> PaymentStatus.REJECTED
+            else -> return ResponseEntity.badRequest()
+                .body(mapOf(
+                    "status" to "error",
+                    "message" to "Invalid status: $status"
+                ))
         }
 
-        val updatedPayment = paymentService.updatePaymentStatus(payment.id, paymentStatus)
-        
+        val updatedPayment = paymentService.updatePaymentStatus(payment.id, newStatus)
         return ResponseEntity.ok(mapOf(
             "status" to "success",
-            "message" to "Payment status updated successfully",
-            "paymentId" to updatedPayment.id.toString(),
-            "orderId" to updatedPayment.orderId.toString(),
+            "paymentId" to payment.id.toString(),
             "newStatus" to updatedPayment.status.toString()
         ))
     }
@@ -43,49 +41,112 @@ class PaymentWebhookController(
     fun handleSuccess(
         @RequestParam("payment_id") paymentId: String,
         @RequestParam("order_id") orderId: String
-    ): ResponseEntity<Map<String, String>> {
+    ): ResponseEntity<Map<String, Any>> {
+        if (paymentId.isBlank() || !isValidUUID(orderId)) {
+            return ResponseEntity.badRequest()
+                .body(mapOf(
+                    "status" to "error",
+                    "message" to "Invalid payment_id or order_id"
+                ))
+        }
+
         val payment = paymentService.getPaymentByPaymentId(paymentId)
             ?: return ResponseEntity.notFound().build()
 
-
-
+        val updatedPayment = paymentService.updatePaymentStatus(payment.id, PaymentStatus.APPROVED)
         return ResponseEntity.ok(mapOf(
             "status" to "success",
-            "message" to "Payment processed successfully",
+            "paymentId" to paymentId,
             "orderId" to orderId,
-            "paymentId" to paymentId
+            "paymentStatus" to updatedPayment.status.toString()
         ))
     }
 
     @GetMapping("/failure")
     fun handleFailure(
         @RequestParam("payment_id") paymentId: String,
-        @RequestParam("order_id") orderId: String
-    ): ResponseEntity<Map<String, String>> {
+        @RequestParam("order_id") orderId: String,
+        @RequestParam("error", required = false) error: String?
+    ): ResponseEntity<Map<String, Any>> {
+        if (paymentId.isBlank() || !isValidUUID(orderId)) {
+            return ResponseEntity.badRequest()
+                .body(mapOf(
+                    "status" to "error",
+                    "message" to "Invalid payment_id or order_id"
+                ))
+        }
+
         val payment = paymentService.getPaymentByPaymentId(paymentId)
             ?: return ResponseEntity.notFound().build()
 
+        val updatedPayment = paymentService.updatePaymentStatus(payment.id, PaymentStatus.REJECTED)
         return ResponseEntity.ok(mapOf(
             "status" to "failure",
-            "message" to "Payment was rejected",
+            "paymentId" to paymentId,
             "orderId" to orderId,
-            "paymentId" to paymentId
+            "error" to (error ?: "Payment failed"),
+            "paymentStatus" to updatedPayment.status.toString()
         ))
     }
 
-    @GetMapping("/pending")
-    fun handlePending(
+    @GetMapping("/cancel")
+    fun handleCancel(
         @RequestParam("payment_id") paymentId: String,
         @RequestParam("order_id") orderId: String
-    ): ResponseEntity<Map<String, String>> {
+    ): ResponseEntity<Map<String, Any>> {
+        if (paymentId.isBlank() || !isValidUUID(orderId)) {
+            return ResponseEntity.badRequest()
+                .body(mapOf(
+                    "status" to "error",
+                    "message" to "Invalid payment_id or order_id"
+                ))
+        }
+
         val payment = paymentService.getPaymentByPaymentId(paymentId)
             ?: return ResponseEntity.notFound().build()
 
+        val updatedPayment = paymentService.updatePaymentStatus(payment.id, PaymentStatus.CANCELLED)
         return ResponseEntity.ok(mapOf(
-            "status" to "pending",
-            "message" to "Payment is pending",
+            "status" to "cancelled",
+            "paymentId" to paymentId,
             "orderId" to orderId,
-            "paymentId" to paymentId
+            "paymentStatus" to updatedPayment.status.toString()
         ))
+    }
+
+    @GetMapping("/refund")
+    fun handleRefund(
+        @RequestParam("payment_id") paymentId: String,
+        @RequestParam("order_id") orderId: String,
+        @RequestParam("refund_amount", required = false) refundAmount: String?
+    ): ResponseEntity<Map<String, Any>> {
+        if (paymentId.isBlank() || !isValidUUID(orderId)) {
+            return ResponseEntity.badRequest()
+                .body(mapOf(
+                    "status" to "error",
+                    "message" to "Invalid payment_id or order_id"
+                ))
+        }
+
+        val payment = paymentService.getPaymentByPaymentId(paymentId)
+            ?: return ResponseEntity.notFound().build()
+
+        val updatedPayment = paymentService.updatePaymentStatus(payment.id, PaymentStatus.REFUNDED)
+        return ResponseEntity.ok(mapOf(
+            "status" to "refunded",
+            "paymentId" to paymentId,
+            "orderId" to orderId,
+            "refundAmount" to (refundAmount ?: payment.amount.toString()),
+            "paymentStatus" to updatedPayment.status.toString()
+        ))
+    }
+
+    private fun isValidUUID(uuid: String): Boolean {
+        return try {
+            UUID.fromString(uuid)
+            true
+        } catch (e: IllegalArgumentException) {
+            false
+        }
     }
 } 

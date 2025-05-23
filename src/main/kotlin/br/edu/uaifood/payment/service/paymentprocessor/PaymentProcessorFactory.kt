@@ -3,6 +3,7 @@ package br.edu.uaifood.payment.service.paymentprocessor
 import br.edu.uaifood.payment.domain.Payment
 import br.edu.uaifood.payment.domain.PaymentMethod
 import br.edu.uaifood.payment.domain.PaymentStatus
+import br.edu.uaifood.payment.exception.PaymentProcessingException
 import org.springframework.stereotype.Component
 import java.math.BigDecimal
 import java.util.UUID
@@ -17,6 +18,12 @@ class PaymentProcessorFactory {
 
 @Component
 class MockPaymentProcessor : PaymentProcessor {
+    private var shouldFail = false
+
+    fun setShouldFail(value: Boolean) {
+        shouldFail = value
+    }
+
     override val paymentMethod: PaymentMethod
         get() = PaymentMethod.CREDIT_CARD // Default payment method, but we'll handle all methods
 
@@ -40,6 +47,14 @@ class MockPaymentProcessor : PaymentProcessor {
     }
 
     override fun processPayment(paymentId: UUID, paymentIntentId: String): PaymentResult {
+        if (shouldFail) {
+            throw PaymentProcessingException("Payment processing failed")
+        }
+
+        if (!paymentIntentId.startsWith("mock_")) {
+            throw PaymentProcessingException("Payment intent not found")
+        }
+
         // Simulate random success/failure (80% success rate)
         val isSuccess = Math.random() < 0.8
         val status = if (isSuccess) PaymentStatus.APPROVED else PaymentStatus.REJECTED

@@ -28,14 +28,4 @@ data class PaymentResult(
     val status: PaymentStatus,
     val errorMessage: String? = null,
     val metadata: Map<String, String> = emptyMap()
-)
-
-enum class PaymentStatus {
-    REQUIRES_PAYMENT_METHOD,
-    REQUIRES_CONFIRMATION,
-    REQUIRES_ACTION,
-    PROCESSING,
-    SUCCEEDED,
-    CANCELED,
-    FAILED
-} 
+) 

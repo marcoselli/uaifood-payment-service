@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE module PUBLIC "-//JaCoCo//DTD Module 1.1//EN" "module.dtd">
+<module name="uaifood-payment-service">
+    <group name="Excluded Classes">
+        <class name="br/edu/uaifood/payment/config/PaymentServiceApplicationKt"/>
+    </group>
+    <group name="Excluded Packages">
+        <package name="br/edu/uaifood/payment/config"/>
+        <package name="br/edu/uaifood/payment/dto"/>
+        <package name="br/edu/uaifood/payment/exception"/>
+        <package name="br/edu/uaifood/payment/model"/>
+    </group>
+</module> 

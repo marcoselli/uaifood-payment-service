@@ -21,7 +21,12 @@ CREATE TABLE payments (
 CREATE TABLE payment_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     payment_id UUID NOT NULL REFERENCES payments(id),
+    order_id UUID NOT NULL,
     event_type VARCHAR(50) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT payment_events_payment_id_fk FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE
+    CONSTRAINT payment_events_payment_id_fk FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE,
+    CONSTRAINT payment_events_status_check CHECK (status IN ('PENDING', 'PROCESSING', 'APPROVED', 'REJECTED', 'CANCELLED', 'REFUNDED'))
 ); 

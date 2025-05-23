@@ -60,23 +60,40 @@ class PaymentService(
     @Transactional
     fun processPayment(paymentId: UUID): Payment {
         val entity = paymentRepository.findById(paymentId)
-            .orElseThrow { RuntimeException("Payment not found: $paymentId") }
+            .orElseThrow { PaymentNotFoundException("Payment not found: $paymentId") }
 
-        val processor = paymentProcessorFactory.getProcessor(entity.paymentMethod)
-        val result = processor.processPayment(paymentId, entity.paymentId!!)
+        // Validate payment state
+        if (entity.status.isFinal()) {
+            throw PaymentProcessingException("Cannot process payment in final state ${entity.status}")
+        }
+        if (entity.status == PaymentStatus.PROCESSING) {
+            throw PaymentProcessingException("Payment is already being processed")
+        }
 
-        val updatedEntity = entity.copy(
-            status = result.status,
-            errorMessage = result.errorMessage,
-            updatedAt = LocalDateTime.now()
-        )
-        return paymentRepository.save(updatedEntity).toDomain()
+        try {
+            val processor = paymentProcessorFactory.getProcessor(entity.paymentMethod)
+            val result = processor.processPayment(paymentId, entity.paymentId!!)
+
+            // Validate processor result
+            if (result.status == PaymentStatus.PROCESSING) {
+                throw PaymentProcessingException("Invalid payment status returned by processor")
+            }
+
+            val updatedEntity = entity.copy(
+                status = result.status,
+                errorMessage = result.errorMessage,
+                updatedAt = LocalDateTime.now()
+            )
+            return paymentRepository.save(updatedEntity).toDomain()
+        } catch (e: Exception) {
+            throw PaymentProcessingException("Failed to process payment: ${e.message}", e)
+        }
     }
 
     @Transactional(readOnly = true)
     fun getPayment(paymentId: UUID): Payment {
         val entity = paymentRepository.findById(paymentId)
-            .orElseThrow { RuntimeException("Payment not found: $paymentId") }
+            .orElseThrow { PaymentNotFoundException("Payment not found: $paymentId") }
         return entity.toDomain()
     }
 
@@ -108,13 +125,52 @@ class PaymentService(
     @Transactional
     fun updatePaymentStatus(paymentId: UUID, status: PaymentStatus): Payment {
         val entity = paymentRepository.findById(paymentId)
-            .orElseThrow { RuntimeException("Payment not found: $paymentId") }
+            .orElseThrow { PaymentNotFoundException("Payment not found: $paymentId") }
+
+        // Validate status transition
+        if (entity.status == PaymentStatus.APPROVED && status == PaymentStatus.PENDING) {
+            throw IllegalStateException("Cannot update payment status from ${entity.status} to $status")
+        }
+
+        // Allow refund only for approved payments
+        if (status == PaymentStatus.REFUNDED && entity.status != PaymentStatus.APPROVED) {
+            throw IllegalStateException("Cannot refund payment in status ${entity.status}")
+        }
+
+        // Validate payment state for other transitions
+        if (entity.status.isFinal() && status != PaymentStatus.REFUNDED) {
+            throw IllegalStateException("Cannot update payment in final state ${entity.status}")
+        }
 
         val updatedEntity = entity.copy(
             status = status,
             updatedAt = LocalDateTime.now()
         )
-        return paymentRepository.save(updatedEntity).toDomain()
+        val savedEntity = paymentRepository.save(updatedEntity)
+
+        // Create payment event
+        val eventType = when (status) {
+            PaymentStatus.APPROVED -> PaymentEventType.PAYMENT_APPROVED
+            PaymentStatus.REJECTED -> PaymentEventType.PAYMENT_REJECTED
+            PaymentStatus.CANCELLED -> PaymentEventType.PAYMENT_CANCELLED
+            PaymentStatus.REFUNDED -> PaymentEventType.PAYMENT_REFUNDED
+            else -> PaymentEventType.PAYMENT_PROCESSING
+        }
+
+        val event = PaymentEvent(
+            paymentId = savedEntity.id,
+            orderId = savedEntity.orderId,
+            eventType = eventType,
+            status = status,
+            amount = savedEntity.amount,
+            metadata = mapOf(
+                "previousStatus" to entity.status.toString(),
+                "updatedAt" to savedEntity.updatedAt.toString()
+            )
+        )
+        paymentEventRepository.save(event)
+
+        return savedEntity.toDomain()
     }
 
     @Transactional(readOnly = true)
@@ -129,7 +185,7 @@ class PaymentService(
 
     fun getPaymentStatus(paymentId: UUID): PaymentStatus {
         val entity = paymentRepository.findById(paymentId)
-            .orElseThrow { RuntimeException("Payment not found: $paymentId") }
+            .orElseThrow { PaymentNotFoundException("Payment not found: $paymentId") }
 
         val processor = paymentProcessorFactory.getProcessor(entity.paymentMethod)
         return processor.getPaymentStatus(entity.paymentId!!)

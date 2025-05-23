@@ -59,6 +59,19 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers:1.19.3")
     testImplementation("org.testcontainers:jdbc:1.19.3")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+
+    // Testing dependencies
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.testcontainers:testcontainers:1.19.7")
+    testImplementation("org.testcontainers:postgresql:1.19.7")
+    testImplementation("org.testcontainers:junit-jupiter:1.19.7")
+    testImplementation("io.cucumber:cucumber-java:7.15.0")
+    testImplementation("io.cucumber:cucumber-spring:7.15.0")
+    testImplementation("io.cucumber:cucumber-junit:7.15.0")
+    testImplementation("org.jacoco:org.jacoco.agent:0.8.11")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
+    testImplementation("com.ninja-squad:springmockk:4.0.0")
+    testImplementation("io.mockk:mockk:1.13.9")
 }
 
 tasks.withType<KotlinCompile>().configureEach {
@@ -70,6 +83,9 @@ tasks.withType<KotlinCompile>().configureEach {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    finalizedBy(tasks.jacocoTestReport)
+    finalizedBy(tasks.jacocoTestCoverageVerification)
+    
     testLogging {
         events("passed", "skipped", "failed")
         showExceptions = true
@@ -116,13 +132,13 @@ tasks.jacocoTestCoverageVerification {
             limit {
                 counter = "LINE"
                 value = "COVEREDRATIO"
-                minimum = "0.00".toBigDecimal()
+                minimum = "0.80".toBigDecimal()
             }
             
             limit {
                 counter = "BRANCH"
                 value = "COVEREDRATIO"
-                minimum = "0.00".toBigDecimal()
+                minimum = "0.80".toBigDecimal()
             }
             
             excludes = listOf(
@@ -130,29 +146,12 @@ tasks.jacocoTestCoverageVerification {
                 "**/dto/**",
                 "**/exception/**",
                 "**/model/**",
-                "**/PaymentApplicationKt",
-                "**/PaymentServiceApplicationKt"
+                "**/PaymentApplicationKt.class",
+                "**/PaymentServiceApplicationKt.class",
+                "br.edu.uaifood.payment.PaymentServiceApplicationKt",
+                "br.edu.uaifood.payment.config.PaymentServiceApplication",
+                "br.edu.uaifood.payment.config.PaymentServiceApplicationKt"
             )
         }
     }
-    
-    classDirectories.setFrom(
-        files(classDirectories.files.map {
-            fileTree(it) {
-                exclude(
-                    "**/config/**",
-                    "**/dto/**",
-                    "**/exception/**",
-                    "**/model/**",
-                    "**/PaymentApplicationKt.class",
-                    "**/PaymentServiceApplicationKt.class"
-                )
-            }
-        })
-    )
-}
-
-tasks.test {
-    finalizedBy(tasks.jacocoTestReport)
-    finalizedBy(tasks.jacocoTestCoverageVerification)
 } 

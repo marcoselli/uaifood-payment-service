@@ -24,7 +24,14 @@ enum class PaymentStatus {
     APPROVED,
     REJECTED,
     CANCELLED,
-    REFUNDED
+    REFUNDED;
+
+    fun isFinal(): Boolean {
+        return when (this) {
+            PENDING, PROCESSING -> false
+            APPROVED, REJECTED, CANCELLED, REFUNDED -> true
+        }
+    }
 }
 
 enum class PaymentMethod {
